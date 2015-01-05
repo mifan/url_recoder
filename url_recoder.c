@@ -8,7 +8,6 @@
 #define PROMISC 1
 #define SNAPLEN 1600
 
-char dev_name[] = "eth0";
 char log_file[] = "/var/log/url_record.txt";
 char pidfile[] = "/var/run/url_recoder";
 FILE* log_fp;
@@ -51,6 +50,7 @@ int logging(char *data,int len)
 	fwrite(data,len,1,log_fp);
 	fputc('\n',log_fp);
 	fflush(log_fp);
+	
 	return 0;
 }
 
@@ -222,15 +222,24 @@ void callback(unsigned char *user, const struct pcap_pkthdr *h, const unsigned c
 }
 
 
-int main()
+int main(int argc,char** argv)
 {
     pcap_t *pt;
+    char dev[10];
     char errbuf[PCAP_ERRBUF_SIZE];
-	
+
+
+    if(argc != 2){
+	printf("./url_recoder eth0\n");
+	exit(0);	
+    }
+
     daemon(0,0);
     create_pidfile();
     log_init();
-    pt = pcap_open_live(dev_name, SNAPLEN, PROMISC, -1, errbuf);
+    strcpy(dev,argv[1]);
+    dev[9] = 0;
+    pt = pcap_open_live(dev, SNAPLEN, PROMISC, -1, errbuf);
     if (pt == NULL){
         printf("open dev failed\n");
         exit(0);
