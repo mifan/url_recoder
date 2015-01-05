@@ -1,13 +1,16 @@
 #include <stdio.h>
+#include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pcap.h>
+#include <unistd.h>
 
 #define PROMISC 1
 #define SNAPLEN 1600
 
 char dev_name[] = "eth0";
-char log_file[] = "/var/url_record.txt";
+char log_file[] = "/var/log/url_record.txt";
+char pidfile[] = "/var/run/url_recoder";
 FILE* log_fp;
 
 int log_init()
@@ -33,6 +36,31 @@ int log_init()
 	
 	return 0;
 }
+
+int logging(char *data,int len)
+{
+	time_t timet;
+	struct tm *p;
+	char str_time[100];
+
+	timet = time(NULL);
+	p = localtime(&timet);
+	
+	strftime(str_time,sizeof(str_time),"<--%m-%d %H:%M:%S-->  ",p);
+	fwrite(str_time,strlen(str_time),1,log_fp);
+	fwrite(data,len,1,log_fp);
+	fputc('\n',log_fp);
+	fflush(log_fp);
+	return 0;
+}
+
+int create_pidfile()
+{
+	return 0;
+}
+
+	
+
 
 int is_http_request(const unsigned char* buf, int len)
 {
@@ -174,23 +202,14 @@ void callback(unsigned char *user, const struct pcap_pkthdr *h, const unsigned c
     case 1:
         ret = get_url(url,&url_len, cur, hdr_len);
         if (ret == 0){
-            fwrite(url,url_len,1,log_fp);
-	    fputc('\n',log_fp);
-	    fflush(log_fp);
-	//url[url_len] = 0;
-        //printf("url:%s\n", url);
+		logging(url,url_len);
 	//printf("url_len:%d\n",url_len);
         }
         break;
     case 2:
         ret = get_url(url,&url_len, cur, hdr_len);
         if (ret == 0){
-            fwrite(url,url_len,1,log_fp);
-	    fputc('\n',log_fp);
-	    fflush(log_fp);
-	//url[url_len] = 0;
-        //printf("url:%s\n", url);
-	//printf("url_len:%d\n",url_len);
+		logging(url,url_len);
         }
         //get_data(data, curl, len);
         break;
@@ -208,7 +227,8 @@ int main()
     pcap_t *pt;
     char errbuf[PCAP_ERRBUF_SIZE];
 	
-	daemon(0,0);
+    daemon(0,0);
+    create_pidfile();
     log_init();
     pt = pcap_open_live(dev_name, SNAPLEN, PROMISC, -1, errbuf);
     if (pt == NULL){
